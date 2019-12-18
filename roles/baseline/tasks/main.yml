@@ -1,0 +1,12 @@
+- name: Install common packages
+  apt:
+    name:
+      - aptitude
+      - curl
+      - git
+      - htop
+      - ncdu
+      - tmux
+      - sudo
+      - vim
+      - wget

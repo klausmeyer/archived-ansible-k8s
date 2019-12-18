@@ -1,0 +1,15 @@
+- name: Load dm_thin_pool kernel module
+  modprobe:
+    name: dm_thin_pool
+    state: present
+
+- name: Load module on boot
+  copy:
+    dest: /etc/modules-load.d/dm_thin_pool.conf
+    content: |
+      dm_thin_pool
+
+- name: Install glusterfs-client
+  apt:
+    name: glusterfs-client
+    state: present

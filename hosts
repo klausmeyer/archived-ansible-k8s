@@ -1,0 +1,7 @@
+[k8s]
+k8s-node01
+k8s-node02
+k8s-node03
+
+[k8s_master]
+k8s-node01

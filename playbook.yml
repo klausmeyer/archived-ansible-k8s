@@ -1,0 +1,30 @@
+- name: Baseline
+  hosts: all
+  roles:
+    - baseline
+
+- name: Docker
+  hosts: k8s
+  roles:
+    - docker
+
+- name: k8s
+  hosts: k8s
+  roles:
+    - k8s
+
+- name: glusterfs
+  hosts: k8s
+  roles:
+    - glusterfs
+
+- name: glusterfs_master
+  hosts: k8s_master
+  roles:
+    - glusterfs_master
+  become: false
+
+- name: k8s master
+  hosts: k8s_master
+  roles:
+    - k8s_master

@@ -1,0 +1,104 @@
+- name: Create glusterfs directory
+  file:
+    path: /home/deploy/glusterfs
+    state: directory
+
+- name: Copy manifests
+  copy:
+    src: "{{item}}"
+    dest: "/home/deploy/glusterfs/{{item}}"
+  with_items:
+    - glusterfs-daemonset.json
+    - heketi-service-account.json
+    - heketi.json
+    - heketi-bootstrap.json
+    - topology.json
+    - heketi-deployment.json
+
+- name: Label all nodes
+  shell: |
+    kubectl label --overwrite node {{item}} storagenode=glusterfs
+  with_items: "{{ groups['k8s'] }}"
+
+- name: Apply manifests and other files
+  shell: |
+    kubectl apply -f /home/deploy/glusterfs/{{item}}
+  with_items:
+    - glusterfs-daemonset.json
+    - heketi-service-account.json
+
+- name: Create ClusteRoleBinding
+  shell: |
+    kubectl create clusterrolebinding heketi-gluster-admin --clusterrole=edit --serviceaccount=default:heketi-service-account
+  ignore_errors: true # TODO :)
+
+- name: Create secret
+  shell: |
+    kubectl create secret generic heketi-config-secret --from-file=/home/deploy/glusterfs/heketi.json
+  ignore_errors: true # TODO :)
+
+- pause:
+    prompt: Make sure the glusterfs pods are ready
+
+- name: Apply bootstrap manfiest
+  shell: |
+    kubectl apply -f /home/deploy/glusterfs/heketi-bootstrap.json
+
+- name: Install heketi-cli
+  shell:
+    cd /tmp \
+    && wget https://github.com/heketi/heketi/releases/download/v9.0.0/heketi-client-v9.0.0.linux.amd64.tar.gz \
+    && tar xvzf heketi-client-v9.0.0.linux.amd64.tar.gz \
+    && cp heketi-client/bin/heketi-cli /usr/local/bin \
+    && rm -rf heketi*
+  args:
+    creates: /usr/local/bin/heketi-cli
+  become: true
+
+- pause:
+    prompt: Make sure the deploy-heketi pod is ready
+
+- name: Find IP of heketi pod
+  shell:
+    kubectl get pod -l name=deploy-heketi -o=jsonpath='{.items[0].status.podIP}'
+  register: heketi_pod_ip
+
+- name: Load heketi topology
+  shell: |
+    export HEKETI_CLI_SERVER=http://{{ heketi_pod_ip.stdout }}:8080
+    heketi-cli topology load --json=/home/deploy/glusterfs/topology.json | tee /home/deploy/glusterfs/heketi-init.log
+  args:
+    creates: /home/deploy/glusterfs/heketi-init.log
+
+- name: Generate heketi manifests
+  shell: |
+    export HEKETI_CLI_SERVER=http://{{ heketi_pod_ip.stdout }}:8080
+
+    cd /home/deploy/glusterfs
+    heketi-cli setup-openshift-heketi-storage --image heketi/heketi:9
+    kubectl apply -f heketi-storage.json
+  args:
+    creates: /home/deploy/glusterfs/heketi-storage.json
+
+- pause:
+    prompt: Make sure the heketi copy job completed
+
+- name: Apply deployment manfiest
+  shell: |
+    kubectl delete all,service,jobs,deployment,secret --selector="deploy-heketi"
+    kubectl apply -f /home/deploy/glusterfs/heketi-deployment.json
+
+- name: Find IP of heketi endpoint
+  shell:
+    kubectl get endpoints heketi -o=jsonpath='{.subsets[0].addresses[0].ip}'
+  register: heketi_endpoint_ip
+
+- name: Create StorageClass manifest
+  template:
+    src: storage-class.yaml
+    dest: /home/deploy/glusterfs/storage-class.yaml
+
+- name: Apply StorageClass manfiest
+  shell: |
+    kubectl apply -f /home/deploy/glusterfs/storage-class.yaml
+
