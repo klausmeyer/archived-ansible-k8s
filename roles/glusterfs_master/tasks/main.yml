@@ -58,21 +58,21 @@
 - pause:
     prompt: Make sure the deploy-heketi pod is ready
 
-- name: Find IP of heketi pod
+- name: Find IP of heketi service
   shell:
-    kubectl get pod -l name=deploy-heketi -o=jsonpath='{.items[0].status.podIP}'
-  register: heketi_pod_ip
+    kubectl get service -l deploy-heketi -o=jsonpath='{.items[0].spec.clusterIP}'
+  register: heketi_service_ip
 
 - name: Load heketi topology
   shell: |
-    export HEKETI_CLI_SERVER=http://{{ heketi_pod_ip.stdout }}:8080
+    export HEKETI_CLI_SERVER=http://{{ heketi_service_ip.stdout }}:8080
     heketi-cli topology load --json=/home/deploy/glusterfs/topology.json | tee /home/deploy/glusterfs/heketi-init.log
   args:
     creates: /home/deploy/glusterfs/heketi-init.log
 
 - name: Generate heketi manifests
   shell: |
-    export HEKETI_CLI_SERVER=http://{{ heketi_pod_ip.stdout }}:8080
+    export HEKETI_CLI_SERVER=http://{{ heketi_service_ip.stdout }}:8080
 
     cd /home/deploy/glusterfs
     heketi-cli setup-openshift-heketi-storage --image heketi/heketi:9
