@@ -40,3 +40,5 @@
 - name: Untaint master
   shell: |
     kubectl taint nodes --all node-role.kubernetes.io/master-
+  become: false
+  ignore_errors: true # TODO :\
