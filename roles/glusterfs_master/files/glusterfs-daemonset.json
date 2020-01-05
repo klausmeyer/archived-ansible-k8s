@@ -31,7 +31,7 @@
                 "hostNetwork": true,
                 "containers": [
                     {
-                        "image": "gluster/gluster-centos:latest",
+                        "image": "gluster/gluster-centos:gluster4u1_centos7",
                         "imagePullPolicy": "Always",
                         "name": "glusterfs",
                         "volumeMounts": [
