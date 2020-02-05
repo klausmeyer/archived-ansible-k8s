@@ -1,31 +1,31 @@
 - name: Init cluster
-  shell: "kubeadm init --pod-network-cidr=172.16.0.0/16 | tee /home/deploy/k8s-init.log"
+  shell: "kubeadm init --pod-network-cidr=172.16.0.0/16 2>&1 | tee /home/{{ ansible_ssh_user }}/k8s-init.log"
   args:
-    creates: /home/deploy/k8s-init.log
+    creates: '/home/{{ ansible_ssh_user }}/k8s-init.log'
 
 - name: Create config dir
   file:
-    path: /home/deploy/.kube
+    path: '/home/{{ ansible_ssh_user }}/.kube'
     state: directory
-    owner: deploy
-    group: deploy
+    owner: '{{ ansible_ssh_user }}'
+    group: '{{ ansible_ssh_user }}'
 
 - name: Copy config file
   copy:
     remote_src: true
     src: /etc/kubernetes/admin.conf
-    dest: /home/deploy/.kube/config
-    owner: deploy
-    group: deploy
+    dest: '/home/{{ ansible_ssh_user }}/.kube/config'
+    owner: '{{ ansible_ssh_user }}'
+    group: '{{ ansible_ssh_user }}'
 
 - name: Download calico manifest
   get_url:
     url: https://docs.projectcalico.org/v3.10/manifests/calico.yaml
-    dest: /home/deploy/calico.yaml
+    dest: '/home/{{ ansible_ssh_user }}/calico.yaml'
 
 - name: Change POD CIDR
   replace:
-    path: /home/deploy/calico.yaml
+    path: '/home/{{ ansible_ssh_user }}/calico.yaml'
     regexp: "192.168.0.0\/16"
     replace: "172.16.0.0/16"
 
@@ -34,7 +34,7 @@
     kubectl apply -f calico.yaml
     touch calico.yaml.applied
   args:
-    creates: /home/deploy/calico.yaml.applied
+    creates: '/home/{{ ansible_ssh_user }}/calico.yaml.applied'
   become: false
 
 - name: Untaint master

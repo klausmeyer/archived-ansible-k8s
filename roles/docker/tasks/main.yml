@@ -31,8 +31,8 @@
     state: started
     enabled: yes
 
-- name: Add deploy user to docker group
+- name: Add user to docker group
   user:
-    name: deploy
+    name: '{{ ansible_ssh_user }}'
     groups: docker
     append: yes

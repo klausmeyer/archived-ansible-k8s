@@ -1,28 +1,33 @@
 - name: Create glusterfs directory
   file:
-    path: /home/deploy/glusterfs
+    path: "/home/{{ ansible_ssh_user }}/glusterfs"
     state: directory
+
+- name: Copy topology config
+  template:
+    src: topology.json.j2
+    dest: "/home/{{ ansible_ssh_user }}/glusterfs/topology.json"
+
 
 - name: Copy manifests
   copy:
     src: "{{item}}"
-    dest: "/home/deploy/glusterfs/{{item}}"
+    dest: "/home/{{ ansible_ssh_user }}/glusterfs/{{ item }}"
   with_items:
     - glusterfs-daemonset.json
     - heketi-service-account.json
     - heketi.json
     - heketi-bootstrap.json
-    - topology.json
     - heketi-deployment.json
 
 - name: Label all nodes
   shell: |
     kubectl label --overwrite node {{item}} storagenode=glusterfs
-  with_items: "{{ groups['k8s'] }}"
+  with_items: "{{ groups['glusterfs'] }}"
 
 - name: Apply manifests and other files
   shell: |
-    kubectl apply -f /home/deploy/glusterfs/{{item}}
+    kubectl apply -f /home/{{ ansible_ssh_user }}/glusterfs/{{ item }}
   with_items:
     - glusterfs-daemonset.json
     - heketi-service-account.json
@@ -34,7 +39,7 @@
 
 - name: Create secret
   shell: |
-    kubectl create secret generic heketi-config-secret --from-file=/home/deploy/glusterfs/heketi.json
+    kubectl create secret generic heketi-config-secret --from-file=/home/{{ ansible_ssh_user }}/glusterfs/heketi.json
   ignore_errors: true # TODO :)
 
 - pause:
@@ -42,7 +47,7 @@
 
 - name: Apply bootstrap manfiest
   shell: |
-    kubectl apply -f /home/deploy/glusterfs/heketi-bootstrap.json
+    kubectl apply -f /home/{{ ansible_ssh_user }}/glusterfs/heketi-bootstrap.json
 
 - name: Install heketi-cli
   shell:
@@ -66,19 +71,19 @@
 - name: Load heketi topology
   shell: |
     export HEKETI_CLI_SERVER=http://{{ heketi_service_ip.stdout }}:8080
-    heketi-cli topology load --json=/home/deploy/glusterfs/topology.json | tee /home/deploy/glusterfs/heketi-init.log
+    heketi-cli topology load --json=/home/{{ ansible_ssh_user }}/glusterfs/topology.json | tee /home/{{ ansible_ssh_user }}/glusterfs/heketi-init.log
   args:
-    creates: /home/deploy/glusterfs/heketi-init.log
+    creates: /home/{{ ansible_ssh_user }}/glusterfs/heketi-init.log
 
 - name: Generate heketi manifests
   shell: |
     export HEKETI_CLI_SERVER=http://{{ heketi_service_ip.stdout }}:8080
 
-    cd /home/deploy/glusterfs
+    cd /home/{{ ansible_ssh_user }}/glusterfs
     heketi-cli setup-openshift-heketi-storage --image heketi/heketi:9
     kubectl apply -f heketi-storage.json
   args:
-    creates: /home/deploy/glusterfs/heketi-storage.json
+    creates: /home/{{ ansible_ssh_user }}/glusterfs/heketi-storage.json
 
 - pause:
     prompt: Make sure the heketi copy job completed
@@ -86,7 +91,7 @@
 - name: Apply deployment manfiest
   shell: |
     kubectl delete all,service,jobs,deployment,secret --selector="deploy-heketi"
-    kubectl apply -f /home/deploy/glusterfs/heketi-deployment.json
+    kubectl apply -f /home/{{ ansible_ssh_user }}/glusterfs/heketi-deployment.json
 
 - name: Find IP of heketi endpoint
   shell:
@@ -95,10 +100,9 @@
 
 - name: Create StorageClass manifest
   template:
-    src: storage-class.yaml
-    dest: /home/deploy/glusterfs/storage-class.yaml
+    src: storage-class.yaml.j2
+    dest: /home/{{ ansible_ssh_user }}/glusterfs/storage-class.yaml
 
 - name: Apply StorageClass manfiest
   shell: |
-    kubectl apply -f /home/deploy/glusterfs/storage-class.yaml
-
+    kubectl apply -f /home/{{ ansible_ssh_user }}/glusterfs/storage-class.yaml

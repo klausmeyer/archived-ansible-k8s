@@ -18,13 +18,18 @@
   roles:
     - k8s_master
 
+- name: k8s worker
+  hosts: k8s_worker
+  roles:
+    - k8s_worker
+
 - name: glusterfs
-  hosts: k8s
+  hosts: glusterfs
   roles:
     - glusterfs
 
 - name: glusterfs_master
-  hosts: k8s_master
+  hosts: glusterfs_master
   roles:
     - glusterfs_master
   become: false

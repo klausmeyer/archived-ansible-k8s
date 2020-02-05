@@ -1,0 +1,13 @@
+- name: Find join command
+  shell: |
+    grep -A1 'kubeadm join' k8s-init.log
+  become: false
+  register: join_command
+  run_once: true
+  delegate_to: "{{ groups['k8s_master'][0] }}"
+
+- name: Execute join command
+  shell: |
+    {{ join_command.stdout }} > /home/{{ ansible_ssh_user }}/k8s-join.log 2>&1
+  args:
+    creates: /home/{{ ansible_ssh_user }}/k8s-join.log
