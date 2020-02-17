@@ -32,6 +32,10 @@
     - glusterfs-daemonset.json
     - heketi-service-account.json
 
+- name: Wait for glusterfs to be ready
+  shell: |
+    kubectl wait --for=condition=Ready --all=true --selector='glusterfs-node=daemonset' --timeout='-1s' pod
+
 - name: Create ClusteRoleBinding
   shell: |
     kubectl create clusterrolebinding heketi-gluster-admin --clusterrole=edit --serviceaccount=default:heketi-service-account
@@ -41,9 +45,6 @@
   shell: |
     kubectl create secret generic heketi-config-secret --from-file=/home/{{ ansible_ssh_user }}/glusterfs/heketi.json
   ignore_errors: true # TODO :)
-
-- pause:
-    prompt: Make sure the glusterfs pods are ready
 
 - name: Apply bootstrap manfiest
   shell: |
@@ -60,8 +61,9 @@
     creates: /usr/local/bin/heketi-cli
   become: true
 
-- pause:
-    prompt: Make sure the deploy-heketi pod is ready
+- name: Wait for deploy-heketi to be ready
+  shell: |
+    kubectl wait --for=condition=Ready --all=true --selector='name=deploy-heketi' --timeout='-1s' pod
 
 - name: Find IP of heketi service
   shell:
@@ -85,8 +87,9 @@
   args:
     creates: /home/{{ ansible_ssh_user }}/glusterfs/heketi-storage.json
 
-- pause:
-    prompt: Make sure the heketi copy job completed
+- name: Wait for copy job to be ready
+  shell: |
+    kubectl wait --for=condition=Ready pod xxx
 
 - name: Apply deployment manfiest
   shell: |
