@@ -8,7 +8,6 @@
     src: topology.json.j2
     dest: "/home/{{ ansible_ssh_user }}/glusterfs/topology.json"
 
-
 - name: Copy manifests
   copy:
     src: "{{item}}"
@@ -34,6 +33,7 @@
 
 - name: Wait for glusterfs to be ready
   shell: |
+    sleep 5
     kubectl wait --for=condition=Ready --all=true --selector='glusterfs-node=daemonset' --timeout='-1s' pod
 
 - name: Create ClusteRoleBinding
@@ -73,7 +73,7 @@
 - name: Load heketi topology
   shell: |
     export HEKETI_CLI_SERVER=http://{{ heketi_service_ip.stdout }}:8080
-    heketi-cli topology load --json=/home/{{ ansible_ssh_user }}/glusterfs/topology.json | tee /home/{{ ansible_ssh_user }}/glusterfs/heketi-init.log
+    heketi-cli topology load --json=/home/{{ ansible_ssh_user }}/glusterfs/topology.json 2>&1 | tee /home/{{ ansible_ssh_user }}/glusterfs/heketi-init.log
   args:
     creates: /home/{{ ansible_ssh_user }}/glusterfs/heketi-init.log
 
@@ -87,9 +87,9 @@
   args:
     creates: /home/{{ ansible_ssh_user }}/glusterfs/heketi-storage.json
 
-- name: Wait for copy job to be ready
+- name: Wait for copy job to be completed
   shell: |
-    kubectl wait --for=condition=Ready pod xxx
+    kubectl wait --for=condition=complete --timeout='-1s' job/heketi-storage-copy-job
 
 - name: Apply deployment manfiest
   shell: |
